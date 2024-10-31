@@ -55,7 +55,7 @@ class SIPClientProvider with ChangeNotifier {
   }
 
   void _initializeSIP() async {
-    _logger.i("Initializing SIP...");
+    _logger.i(" LOGGER: Initializing SIP...");
     try {
       UaSettings uaSettings = UaSettings()
         ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
@@ -65,7 +65,7 @@ class SIPClientProvider with ChangeNotifier {
         ..transportType = TransportType.WS
         ..webSocketSettings.allowBadCertificate = true
         ..uri = "sip:customer@zada-acd.servobot.ai"
-        ..displayName = "customer"
+        ..displayName = "customer 1"
         ..register = false;
 
       await _sipUAHelper.start(uaSettings);
@@ -75,9 +75,9 @@ class SIPClientProvider with ChangeNotifier {
       _globalVar.statusMessageGlobal = "Disconnected";
       notifyListeners();
 
-      _logger.i("SIP initialized successfully");
+      _logger.i(" LOGGER: SIP initialized successfully");
     } catch (e) {
-      _logger.e("Error initializing SIP: $e");
+      _logger.e("LOGGER: Error initializing SIP: $e");
       setErrorMessage("Error initializing SIP: $e");
     }
   }
@@ -127,63 +127,63 @@ class MySIPListener extends SipUaHelperListener {
     String message;
     switch (state.state) {
       case CallStateEnum.CALL_INITIATION:
-        _logger.i("Call initiating...");
+        _logger.i(" LOGGER: Call initiating...");
         message = "Initiating Call...";
         break;
       case CallStateEnum.CONNECTING:
-        _logger.i("Call connecting...");
+        _logger.i(" LOGGER: Call connecting...");
         message = "Connecting...";
         break;
       case CallStateEnum.PROGRESS:
-        _logger.i("Call in progress...");
+        _logger.i(" LOGGER: Call in progress...");
         message = "In Progress...";
         break;
       case CallStateEnum.ACCEPTED:
-        _logger.i("Call accepted");
+        _logger.i(" LOGGER: Call accepted");
         message = "Call Accepted...";
         break;
       case CallStateEnum.CONFIRMED:
-        _logger.i("Call confirmed");
+        _logger.i(" LOGGER: Call confirmed");
         message = "Call Confirmed...";
         break;
       case CallStateEnum.ENDED:
-        _logger.i("Call ended");
+        _logger.i(" LOGGER: Call ended");
         message = "Call Ended";
         provider._globalVar.currentCall = null;
         break;
       case CallStateEnum.FAILED:
-        _logger.e("Call failed: ${state.cause}");
+        _logger.e("LOGGER: Call failed: ${state.cause}");
         message = "Call Failed: ${state.cause}";
         provider.setErrorMessage(message);
         provider.endDialing();
         provider._globalVar.currentCall = null;
         return;
       case CallStateEnum.STREAM:
-        _logger.i("Call stream updated");
+        _logger.i(" LOGGER: Call stream updated");
         message = "Stream Updated";
         break;
       case CallStateEnum.UNMUTED:
-        _logger.i("Call unmuted");
+        _logger.i(" LOGGER: Call unmuted");
         message = "Call Unmuted";
         break;
       case CallStateEnum.MUTED:
-        _logger.i("Call muted");
+        _logger.i(" LOGGER: Call muted");
         message = "Call Muted";
         break;
       case CallStateEnum.HOLD:
-        _logger.i("Call on hold");
+        _logger.i(" LOGGER: Call on hold");
         message = "Call on Hold";
         break;
       case CallStateEnum.UNHOLD:
-        _logger.i("Call resumed");
+        _logger.i(" LOGGER: Call resumed");
         message = "Call Resumed";
         break;
       case CallStateEnum.REFER:
-        _logger.i("Call transfer initiated");
+        _logger.i(" LOGGER: Call transfer initiated");
         message = "Call Transfer Initiated";
         break;
       default:
-        _logger.i("Unknown Call State: ${state.state}");
+        _logger.i(" LOGGER: Unknown Call State: ${state.state}");
         message = "Unknown Call State";
         break;
     }
@@ -193,33 +193,32 @@ class MySIPListener extends SipUaHelperListener {
 
   @override
   void transportStateChanged(TransportState state) {
-    _logger.i("Transport state: ${state.state}");
+    _logger.i(" LOGGER: Transport state: ${state.state}");
     if (state.state == TransportStateEnum.DISCONNECTED) {
       provider.updateStatus("Transport Disconnected");
     } else if (state.state == TransportStateEnum.CONNECTED) {
       provider.updateStatus("Transport Connected");
     }
   }
-  
-@override
+
+  @override
   void onNewMessage(SIPMessageRequest msg) {
-    _logger.i("LOGGER New Message received: $msg");
+    _logger.i(" LOGGER: LOGGER New Message received: $msg");
   }
 
   @override
   void onNewNotify(Notify ntf) {
-    _logger.i("LOGGER New notification received: $ntf");
+    _logger.i(" LOGGER: LOGGER New notification received: $ntf");
   }
 
   @override
   void onNewReinvite(ReInvite event) {
-    _logger.i("LOGGER Received a re-invite request $event");
+    _logger.i(" LOGGER: LOGGER Received a re-invite request $event");
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key,});
-
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -233,10 +232,14 @@ class _HomePageState extends State<HomePage> {
   MediaStream? _localStream;
   final GlobalVar _globalVar = GlobalVar.instance;
 
+  Offset _localVideoOffset = Offset(16.0, 16.0); // Initial position
+  bool _dragging = false;
+
   @override
   void initState() {
     super.initState();
-    _sipHelper = Provider.of<SIPClientProvider>(context, listen: false).sipUAHelper;
+    _sipHelper =
+        Provider.of<SIPClientProvider>(context, listen: false).sipUAHelper;
     _initRenderers();
   }
 
@@ -256,56 +259,76 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _makeCall() async {
-    _logger.i("Executing _makeCall");
+    _logger.i(" LOGGER: Executing _makeCall");
     _globalVar.errorMessageGlobal = "";
 
     final provider = Provider.of<SIPClientProvider>(context, listen: false);
     provider.startDialing();
 
-    await provider.sipUAHelper.call('sip:target@zada-acd.servobot.ai');
+   // await provider.sipUAHelper.call('sip:target@zada-acd.servobot.ai');
 
     final mediaConstraints = <String, dynamic>{
       "audio": true,
-      "video": {"mandatory": {"minWidth": "640", "minHeight": "480", "minFrameRate": "30"}, "facingMode": "user"},
+      "video": {
+        "mandatory": {
+          "minWidth": "640",
+          "minHeight": "480",
+          "minFrameRate": "30"
+        },
+        "facingMode": "user"
+      },
     };
 
     try {
-      _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      _localStream =
+          await navigator.mediaDevices.getUserMedia(mediaConstraints);
       setState(() {
         _localRenderer?.srcObject = _localStream;
       });
 
-      await _sipHelper?.call('sip:target@zada-acd.servobot.ai', mediaStream: _localStream);
-      _logger.i("Dialing...");
+      await _sipHelper?.call('sip:target@zada-acd.servobot.ai',
+          mediaStream: _localStream);
+      _logger.i(" LOGGER: Dialing...");
+
+
+      
     } catch (e) {
-      _logger.e("Error accessing media devices: $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to access media devices")));
+      _logger.e("LOGGER: Error accessing media devices: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to access media devices")));
     }
   }
 
   Future<void> _answerCall() async {
-    final currentCall = Provider.of<SIPClientProvider>(context, listen: false).currentCall;
+    final currentCall =
+        Provider.of<SIPClientProvider>(context, listen: false).currentCall;
     if (currentCall != null) {
       try {
-        final mediaConstraints = <String, dynamic>{"audio": true, "video": true};
-        _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        final mediaConstraints = <String, dynamic>{
+          "audio": true,
+          "video": true
+        };
+        _localStream =
+            await navigator.mediaDevices.getUserMedia(mediaConstraints);
         setState(() {
           _localRenderer?.srcObject = _localStream;
         });
 
-        final callOptions = _sipHelper!.buildCallOptions(true)..['mediaStream'] = _localStream;
+        final callOptions = _sipHelper!.buildCallOptions(true)
+          ..['mediaStream'] = _localStream;
         currentCall.answer(callOptions);
-        _logger.i("Answering call...");
+        _logger.i(" LOGGER: Answering call...");
       } catch (e) {
-        _logger.e("Error answering call: $e");
+        _logger.e("LOGGER: Error answering call: $e");
       }
     } else {
-      _logger.w("No incoming call to answer");
+      _logger.w("LOGGER: No incoming call to answer");
     }
   }
 
   void _endCall() {
-    final currentCall = Provider.of<SIPClientProvider>(context, listen: false).currentCall;
+    final currentCall =
+        Provider.of<SIPClientProvider>(context, listen: false).currentCall;
     if (currentCall != null) {
       currentCall.hangup();
 
@@ -316,230 +339,215 @@ class _HomePageState extends State<HomePage> {
         _localStream = null;
       });
     } else {
-      _logger.w("No active call to end");
+      _logger.w("LOGGER: No active call to end");
     }
   }
 
- 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<SIPClientProvider>(
-      builder: (context, provider, child) {
-        return Scaffold(
-          body: Column(
-            children: [
-              if (_globalVar.errorMessageGlobal.isNotEmpty)
-                Container(
-                  color: Colors.red,
-                  padding: const EdgeInsets.all(8),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(_globalVar.errorMessageGlobal,
-                              style: const TextStyle(color: Colors.white))),
-                    ],
-                  ),
-                ),
-              if (_globalVar.statusMessageGlobal.isNotEmpty)
-                Container(
-                  color: Colors.blue,
-                  padding: const EdgeInsets.all(8),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(_globalVar.statusMessageGlobal,
-                              style: const TextStyle(color: Colors.white))),
-                    ],
-                  ),
-                ),
-              Expanded(
-                child: Stack(
-                  children: [
-                    // Remote video view (large)
-                    Positioned.fill(
-                      child: Container(
-                        margin: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          border: Border.all(),
-                          borderRadius: BorderRadius.circular(8.0),
-                          color: Colors.black54,
-                        ),
-                        child: RTCVideoView(_remoteRenderer!),
-                      ),
-                    ),
-                    // Local video view (small overlay)
-                    Positioned(
-                      right: 16.0,
-                      bottom: 16.0,
-                      width: 120, // Set width for the smaller view
-                      height: 160, // Set height for the smaller view
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(),
-                          borderRadius: BorderRadius.circular(8.0),
-                          color: Colors.black54,
-                        ),
-                        child: RTCVideoView(_localRenderer!),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: provider.isDialing ? null : _makeCall,
-                      child: const Text("Dial"),
-                    ),
-                    ElevatedButton(
-                      onPressed: provider.isDialing ? null : _answerCall,
-                      child: const Text("Answer"),
-                    ),
-                    ElevatedButton(
-                      onPressed: provider.isDialing ? null : _endCall,
-                      child: const Text("End Call"),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  void _cancelDialing() {
+    final provider = Provider.of<SIPClientProvider>(context, listen: false);
+    provider.endDialing(); // Ends dialing state
+
+    // If a call is in progress, hang it up
+    final currentCall = provider.currentCall;
+    if (currentCall != null) {
+      currentCall.hangup();
+      setState(() {
+        _localRenderer?.srcObject = null;
+        _remoteRenderer?.srcObject = null;
+        _localStream?.dispose();
+        _localStream = null;
+      });
+    }
   }
-}
-/* 
-
-class VideoCallScreen extends StatefulWidget {
-  @override
-  _VideoCallScreenState createState() => _VideoCallScreenState();
-}
-
-class _VideoCallScreenState extends State<VideoCallScreen> {
-  Offset _localVideoPosition = Offset(16.0, 16.0); // Initial position
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SIPClientProvider>(
       builder: (context, provider, child) {
         return Scaffold(
-          body: Column(
+          body: Stack(
             children: [
+              // Main content with video views
+              Column(
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Container(
+                            margin: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              border: Border.all(),
+                              borderRadius: BorderRadius.circular(8.0),
+                              color: Colors.black54,
+                            ),
+                            child: RTCVideoView(_remoteRenderer!),
+                          ),
+                        ),
+                        Positioned(
+                          left: _localVideoOffset.dx,
+                          top: _localVideoOffset.dy,
+                          child: Draggable(
+                            feedback: Container(
+                              width: 120,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                border: Border.all(),
+                                borderRadius: BorderRadius.circular(8.0),
+                                color: Colors.black54,
+                              ),
+                              child: RTCVideoView(_localRenderer!),
+                            ),
+                            childWhenDragging:
+                                Container(), // Empty space when dragging
+                            onDragStarted: () {
+                              setState(() {
+                                _dragging = true;
+                              });
+                            },
+
+                            onDragEnd: (details) {
+                              setState(() {
+                                _dragging = false;
+
+                                // Ambil offset tanpa pengurangan
+                                double newX = details.offset.dx;
+                                double newY = details.offset.dy;
+
+                                // Dapatkan dimensi layar
+                                double screenWidth =
+                                    MediaQuery.of(context).size.width;
+                                double screenHeight =
+                                    MediaQuery.of(context).size.height;
+
+                                // Hitung batas
+                                newX = newX.clamp(
+                                    0.0,
+                                    screenWidth -
+                                        120); // 120 adalah lebar video lokal
+                                newY = newY.clamp(
+                                    0.0,
+                                    screenHeight -
+                                        160); // 160 adalah tinggi video lokal
+
+                                _localVideoOffset = Offset(newX, newY);
+                              });
+                            },
+
+                            child: Container(
+                              width: 120,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                border: Border.all(),
+                                borderRadius: BorderRadius.circular(8.0),
+                                color: Colors.black54,
+                              ),
+                              child: RTCVideoView(_localRenderer!),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              // Error and status messages overlay
+
               if (_globalVar.errorMessageGlobal.isNotEmpty)
-                Container(
-                  color: Colors.red,
-                  padding: const EdgeInsets.all(8),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
+                Positioned(
+                  top: 90,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    color: Colors.red,
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(
                           _globalVar.errorMessageGlobal,
                           style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
+                        )),
+                      ],
+                    ),
                   ),
                 ),
               if (_globalVar.statusMessageGlobal.isNotEmpty)
-                Container(
-                  color: Colors.blue,
-                  padding: const EdgeInsets.all(8),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
+                Positioned(
+                  top:
+                      40, // Adjust as needed to avoid overlap with error message
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    color: Colors.blue,
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(
                           _globalVar.statusMessageGlobal,
                           style: const TextStyle(color: Colors.white),
+                        )),
+                      ],
+                    ),
+                  ),
+                ),
+              // Call control buttons at the bottom
+
+              if (provider.isDialing)
+                Positioned(
+                  bottom: 80,
+                  right: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ElevatedButton(
+                      onPressed: _cancelDialing,
+                      child: const Text('Cancel Dialing'),
+                    ),
+                  ),
+                ),
+
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: provider.isDialing ? null : _makeCall,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
                         ),
+                        child: const Text("Dial"),
+                      ),
+                      ElevatedButton(
+                        onPressed: provider.isDialing ? null : _answerCall,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("Answer"),
+                      ),
+                      ElevatedButton(
+                        onPressed: provider.isDialing ? null : _endCall,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("End Call"),
                       ),
                     ],
                   ),
-                ),
-              Expanded(
-                child: Stack(
-                  children: [
-                    // Remote video view (large)
-                    Positioned.fill(
-                      child: Container(
-                        margin: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          border: Border.all(),
-                          borderRadius: BorderRadius.circular(8.0),
-                          color: Colors.black54,
-                        ),
-                        child: RTCVideoView(_remoteRenderer!),
-                      ),
-                    ),
-                    // Local video view (small overlay, draggable)
-                    Positioned(
-                      left: _localVideoPosition.dx,
-                      top: _localVideoPosition.dy,
-                      child: Draggable(
-                        feedback: Container(
-                          width: 120,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            border: Border.all(),
-                            borderRadius: BorderRadius.circular(8.0),
-                            color: Colors.black54,
-                          ),
-                          child: RTCVideoView(_localRenderer!),
-                        ),
-                        childWhenDragging: Container(), // Empty container when dragging
-                        onDragEnd: (details) {
-                          setState(() {
-                            _localVideoPosition = details.offset;
-                          });
-                        },
-                        child: Container(
-                          width: 120,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            border: Border.all(),
-                            borderRadius: BorderRadius.circular(8.0),
-                            color: Colors.black54,
-                          ),
-                          child: RTCVideoView(_localRenderer!),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: provider.isDialing ? null : _makeCall,
-                      child: const Text("Dial"),
-                    ),
-                    ElevatedButton(
-                      onPressed: provider.isDialing ? null : _answerCall,
-                      child: const Text("Answer"),
-                    ),
-                    ElevatedButton(
-                      onPressed: provider.isDialing ? null : _endCall,
-                      child: const Text("End Call"),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -549,5 +557,3 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     );
   }
 }
-
- */
