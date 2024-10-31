@@ -55,19 +55,26 @@ class SIPClientProvider with ChangeNotifier {
   }
 
   void _initializeSIP() async {
-    _logger.i(" LOGGER: Initializing SIP...");
+    _logger.i(" LOGGERTHIS: Initializing SIP...");
     try {
       UaSettings uaSettings = UaSettings()
-        ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
+        /*  ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
         ..password = "1234"
+        ..uri = "sip:customer@zada-acd.servobot.ai"
         ..authorizationUser = "customer"
-        ..userAgent = "customer"
         ..transportType = TransportType.WS
         ..webSocketSettings.allowBadCertificate = true
-        ..uri = "sip:customer@zada-acd.servobot.ai"
-        ..displayName = "customer 1"
-        ..register = false;
+        ..displayName = "customer 1"; */
+        ..uri = "sip:zada@zada-acd.servobot.ai" // Pastikan ID pengguna benar
+        ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
+        ..password = "1234" // Password yang benar
+        ..authorizationUser = "customer" // Username yang benar
+        ..transportType = TransportType.WS // Pastikan ini sesuai dengan server
+        ..webSocketSettings.allowBadCertificate = true // Hanya untuk pengujian
+        ..displayName = "Customer 1"; // Nama tampilan
 
+      _logger.i("LOGGERTHIS: Using URI: ${uaSettings.uri}");
+      _logger.i("LOGGERTHIS: Using Username: ${uaSettings.authorizationUser}");
       await _sipUAHelper.start(uaSettings);
       _sipUAHelper.addSipUaHelperListener(MySIPListener(this));
 
@@ -75,9 +82,9 @@ class SIPClientProvider with ChangeNotifier {
       _globalVar.statusMessageGlobal = "Disconnected";
       notifyListeners();
 
-      _logger.i(" LOGGER: SIP initialized successfully");
+      _logger.i(" LOGGERTHIS: SIP initialized successfully");
     } catch (e) {
-      _logger.e("LOGGER: Error initializing SIP: $e");
+      _logger.e("LOGGERTHIS: Error initializing SIP: $e");
       setErrorMessage("Error initializing SIP: $e");
     }
   }
@@ -127,63 +134,71 @@ class MySIPListener extends SipUaHelperListener {
     String message;
     switch (state.state) {
       case CallStateEnum.CALL_INITIATION:
-        _logger.i(" LOGGER: Call initiating...");
+        _logger.i(" LOGGERTHIS: Call initiating...");
         message = "Initiating Call...";
         break;
       case CallStateEnum.CONNECTING:
-        _logger.i(" LOGGER: Call connecting...");
+        _logger.i(" LOGGERTHIS: Call connecting...");
         message = "Connecting...";
         break;
       case CallStateEnum.PROGRESS:
-        _logger.i(" LOGGER: Call in progress...");
+        _logger.i(" LOGGERTHIS: Call in progress...");
         message = "In Progress...";
         break;
       case CallStateEnum.ACCEPTED:
-        _logger.i(" LOGGER: Call accepted");
+        _logger.i(" LOGGERTHIS: Call accepted");
         message = "Call Accepted...";
         break;
       case CallStateEnum.CONFIRMED:
-        _logger.i(" LOGGER: Call confirmed");
+        _logger.i(" LOGGERTHIS: Call confirmed");
         message = "Call Confirmed...";
         break;
       case CallStateEnum.ENDED:
-        _logger.i(" LOGGER: Call ended");
+        _logger.i(" LOGGERTHIS: Call ended");
         message = "Call Ended";
+        provider.setErrorMessage(message);
+        provider.endDialing();
         provider._globalVar.currentCall = null;
         break;
       case CallStateEnum.FAILED:
-        _logger.e("LOGGER: Call failed: ${state.cause}");
+        _logger.e("LOGGERTHIS: Call failed: ${state.cause}");
         message = "Call Failed: ${state.cause}";
         provider.setErrorMessage(message);
         provider.endDialing();
         provider._globalVar.currentCall = null;
         return;
       case CallStateEnum.STREAM:
-        _logger.i(" LOGGER: Call stream updated");
+        _logger.i(" LOGGERTHIS: Call stream updated");
         message = "Stream Updated";
         break;
       case CallStateEnum.UNMUTED:
-        _logger.i(" LOGGER: Call unmuted");
+        _logger.i(" LOGGERTHIS: Call unmuted");
         message = "Call Unmuted";
         break;
       case CallStateEnum.MUTED:
-        _logger.i(" LOGGER: Call muted");
+        _logger.i(" LOGGERTHIS: Call muted");
         message = "Call Muted";
         break;
       case CallStateEnum.HOLD:
-        _logger.i(" LOGGER: Call on hold");
+        _logger.i(" LOGGERTHIS: Call on hold");
         message = "Call on Hold";
         break;
       case CallStateEnum.UNHOLD:
-        _logger.i(" LOGGER: Call resumed");
+        _logger.i(" LOGGERTHIS: Call resumed");
         message = "Call Resumed";
         break;
       case CallStateEnum.REFER:
-        _logger.i(" LOGGER: Call transfer initiated");
+        _logger.i(" LOGGERTHIS: Call transfer initiated");
         message = "Call Transfer Initiated";
         break;
+
+      case CallStateEnum.NONE:
+        _logger.i(" LOGGERTHIS: No active call state");
+        message = "No Active Call State";
+        break;
+
       default:
-        _logger.i(" LOGGER: Unknown Call State: ${state.state}");
+        _logger.i(" LOGGERTHIS: Unknown Call State: ${state.state}");
         message = "Unknown Call State";
         break;
     }
@@ -193,7 +208,7 @@ class MySIPListener extends SipUaHelperListener {
 
   @override
   void transportStateChanged(TransportState state) {
-    _logger.i(" LOGGER: Transport state: ${state.state}");
+    _logger.i(" LOGGERTHIS: Transport state: ${state.state}");
     if (state.state == TransportStateEnum.DISCONNECTED) {
       provider.updateStatus("Transport Disconnected");
     } else if (state.state == TransportStateEnum.CONNECTED) {
@@ -203,17 +218,17 @@ class MySIPListener extends SipUaHelperListener {
 
   @override
   void onNewMessage(SIPMessageRequest msg) {
-    _logger.i(" LOGGER: LOGGER New Message received: $msg");
+    _logger.i(" LOGGERTHIS: LOGGERTHIS New Message received: $msg");
   }
 
   @override
   void onNewNotify(Notify ntf) {
-    _logger.i(" LOGGER: LOGGER New notification received: $ntf");
+    _logger.i(" LOGGERTHIS: LOGGERTHIS New notification received: $ntf");
   }
 
   @override
   void onNewReinvite(ReInvite event) {
-    _logger.i(" LOGGER: LOGGER Received a re-invite request $event");
+    _logger.i(" LOGGERTHIS: LOGGERTHIS Received a re-invite request $event");
   }
 }
 
@@ -232,8 +247,9 @@ class _HomePageState extends State<HomePage> {
   MediaStream? _localStream;
   final GlobalVar _globalVar = GlobalVar.instance;
 
-  Offset _localVideoOffset = Offset(16.0, 16.0); // Initial position
-  bool _dragging = false;
+  //Offset _localVideoOffset = Offset(16.0, 16.0); // Initial position
+  Offset _localVideoOffset =
+      const Offset(260.0, 600.0); //Initial position kanan bawah
 
   @override
   void initState() {
@@ -259,13 +275,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _makeCall() async {
-    _logger.i(" LOGGER: Executing _makeCall");
+    _logger.i(" LOGGERTHIS: Executing _makeCall");
     _globalVar.errorMessageGlobal = "";
 
     final provider = Provider.of<SIPClientProvider>(context, listen: false);
     provider.startDialing();
+    _logger.i(" LOGGERTHIS: Prepare DIalling");
 
-   // await provider.sipUAHelper.call('sip:target@zada-acd.servobot.ai');
+    // await provider.sipUAHelper.call('sip:target@zada-acd.servobot.ai');
 
     final mediaConstraints = <String, dynamic>{
       "audio": true,
@@ -286,14 +303,14 @@ class _HomePageState extends State<HomePage> {
         _localRenderer?.srcObject = _localStream;
       });
 
+      /* URI Target: Digunakan untuk mengidentifikasi pengguna lain yang di  hubungi saat melakukan panggilan. */
+      _logger.i(" LOGGERTHIS: Making call to sip:target@zada-acd.servobot.ai");
+
       await _sipHelper?.call('sip:target@zada-acd.servobot.ai',
           mediaStream: _localStream);
-      _logger.i(" LOGGER: Dialing...");
-
-
-      
+      _logger.i(" LOGGERTHIS: Dialing...");
     } catch (e) {
-      _logger.e("LOGGER: Error accessing media devices: $e");
+      _logger.e("LOGGERTHIS: Error accessing media devices: $e");
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to access media devices")));
     }
@@ -317,12 +334,12 @@ class _HomePageState extends State<HomePage> {
         final callOptions = _sipHelper!.buildCallOptions(true)
           ..['mediaStream'] = _localStream;
         currentCall.answer(callOptions);
-        _logger.i(" LOGGER: Answering call...");
+        _logger.i(" LOGGERTHIS: Answering call...");
       } catch (e) {
-        _logger.e("LOGGER: Error answering call: $e");
+        _logger.e("LOGGERTHIS: Error answering call: $e");
       }
     } else {
-      _logger.w("LOGGER: No incoming call to answer");
+      _logger.w("LOGGERTHIS: No incoming call to answer");
     }
   }
 
@@ -339,17 +356,20 @@ class _HomePageState extends State<HomePage> {
         _localStream = null;
       });
     } else {
-      _logger.w("LOGGER: No active call to end");
+      _logger.w("LOGGERTHIS: No active call to end");
     }
   }
 
   void _cancelDialing() {
     final provider = Provider.of<SIPClientProvider>(context, listen: false);
-    provider.endDialing(); // Ends dialing state
+    provider.endDialing(); // Mengubah status isDialing menjadi false
+    _logger.i("LOGGERTHIS: Cancel dialing pressed");
 
-    // If a call is in progress, hang it up
+    provider.setErrorMessage("DIALING CANCELLED");
+
     final currentCall = provider.currentCall;
     if (currentCall != null) {
+      _logger.i("LOGGERTHIS: Hanging up current call");
       currentCall.hangup();
       setState(() {
         _localRenderer?.srcObject = null;
@@ -357,6 +377,8 @@ class _HomePageState extends State<HomePage> {
         _localStream?.dispose();
         _localStream = null;
       });
+    } else {
+      _logger.w("LOGGERTHIS: No active call to hang up");
     }
   }
 
@@ -364,12 +386,18 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Consumer<SIPClientProvider>(
       builder: (context, provider, child) {
+        bool isCallActive = provider.currentCall != null && provider.isDialing;
+
         return Scaffold(
           body: Stack(
             children: [
               // Main content with video views
               Column(
                 children: [
+                  const Text(
+                    "Version: 1.2",
+                    style: TextStyle(color: Colors.black),
+                  ),
                   Expanded(
                     child: Stack(
                       children: [
@@ -401,15 +429,11 @@ class _HomePageState extends State<HomePage> {
                             childWhenDragging:
                                 Container(), // Empty space when dragging
                             onDragStarted: () {
-                              setState(() {
-                                _dragging = true;
-                              });
+                              setState(() {});
                             },
 
                             onDragEnd: (details) {
                               setState(() {
-                                _dragging = false;
-
                                 // Ambil offset tanpa pengurangan
                                 double newX = details.offset.dx;
                                 double newY = details.offset.dy;
@@ -500,19 +524,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               // Call control buttons at the bottom
 
-              if (provider.isDialing)
-                Positioned(
-                  bottom: 80,
-                  right: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: ElevatedButton(
-                      onPressed: _cancelDialing,
-                      child: const Text('Cancel Dialing'),
-                    ),
-                  ),
-                ),
-
               Positioned(
                 bottom: 20,
                 left: 0,
@@ -531,21 +542,32 @@ class _HomePageState extends State<HomePage> {
                         child: const Text("Dial"),
                       ),
                       ElevatedButton(
-                        onPressed: provider.isDialing ? null : _answerCall,
+                        onPressed: isCallActive
+                            ? _answerCall
+                            : null, // Disable if not being called
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                         ),
                         child: const Text("Answer"),
                       ),
-                      ElevatedButton(
-                        onPressed: provider.isDialing ? null : _endCall,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text("End Call"),
-                      ),
+                      provider.isDialing
+                          ? ElevatedButton(
+                              onPressed: _cancelDialing,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text("Cancel Dialing"),
+                            )
+                          : ElevatedButton(
+                              onPressed: isCallActive ? _endCall : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text("End Call"),
+                            ),
                     ],
                   ),
                 ),

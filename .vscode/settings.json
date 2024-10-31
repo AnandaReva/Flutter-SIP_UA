@@ -1,3 +1,4 @@
 {
-    "java.compile.nullAnalysis.mode": "disabled"
+    "java.compile.nullAnalysis.mode": "disabled",
+    "cmake.sourceDirectory": "C:/Users/Reva Ananda/OneDrive/Dokumen/temp/Dart/Magang_teleakses/magang_teleakses/windows/flutter"
 }
