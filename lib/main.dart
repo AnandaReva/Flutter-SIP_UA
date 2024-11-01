@@ -57,24 +57,25 @@ class SIPClientProvider with ChangeNotifier {
   void _initializeSIP() async {
     _logger.i(" LOGGERTHIS: Initializing SIP...");
     try {
-      UaSettings uaSettings = UaSettings()
-        /*  ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
+      UaSettings uaSettings = UaSettings();
+      /*  ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
         ..password = "1234"
         ..uri = "sip:customer@zada-acd.servobot.ai"
         ..authorizationUser = "customer"
         ..transportType = TransportType.WS
         ..webSocketSettings.allowBadCertificate = true
         ..displayName = "customer 1"; */
-        ..uri = "sip:zada@zada-acd.servobot.ai" // Pastikan ID pengguna benar
-        ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
-        ..password = "1234" // Password yang benar
-        ..authorizationUser = "customer" // Username yang benar
-        ..transportType = TransportType.WS // Pastikan ini sesuai dengan server
-        ..webSocketSettings.allowBadCertificate = true // Hanya untuk pengujian
-        ..displayName = "Customer 1"; // Nama tampilan
+      uaSettings.webSocketUrl = 'wss://zada-acd.servobot.ai/wsproxy';
+      uaSettings.uri = 'sip:00003@zada-acd.servobot.ai';
+      uaSettings.authorizationUser = 'customer';
+      uaSettings.password = '1234';
+      uaSettings.displayName = 'Customer';
+      uaSettings.userAgent = 'Flutter SIP Client';
+      uaSettings.transportType = TransportType.WS;
 
-      _logger.i("LOGGERTHIS: Using URI: ${uaSettings.uri}");
-      _logger.i("LOGGERTHIS: Using Username: ${uaSettings.authorizationUser}");
+      _logger.i(" LOGGERTHIS: Using URI: ${uaSettings.uri}");
+      _logger.i(
+          " LOGGERTHIS: Using authorizationUser: ${uaSettings.authorizationUser}");
       await _sipUAHelper.start(uaSettings);
       _sipUAHelper.addSipUaHelperListener(MySIPListener(this));
 
@@ -113,16 +114,24 @@ class MySIPListener extends SipUaHelperListener {
     String message;
     switch (state.state) {
       case RegistrationStateEnum.REGISTERED:
-        message = "Registered with SIP server";
+        message = "Registered with SIP server ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
         break;
       case RegistrationStateEnum.UNREGISTERED:
-        message = "Unregistered from SIP server";
+        message = "Unregistered from SIP server ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
         break;
       case RegistrationStateEnum.NONE:
         message = "Registration failed: ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
+        break;
+      case RegistrationStateEnum.REGISTRATION_FAILED:
+        message = "Registration failed: ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
         break;
       default:
-        message = "Unknown registration state";
+        message = "Unknown registration state, ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
     }
     provider.setErrorMessage(message);
   }
@@ -232,6 +241,10 @@ class MySIPListener extends SipUaHelperListener {
   }
 }
 
+/* 
+
+
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -246,10 +259,9 @@ class _HomePageState extends State<HomePage> {
   RTCVideoRenderer? _remoteRenderer;
   MediaStream? _localStream;
   final GlobalVar _globalVar = GlobalVar.instance;
+  final TextEditingController _uriController = TextEditingController();
 
-  //Offset _localVideoOffset = Offset(16.0, 16.0); // Initial position
-  Offset _localVideoOffset =
-      const Offset(260.0, 600.0); //Initial position kanan bawah
+  Offset _localVideoOffset = const Offset(260.0, 600.0);
 
   @override
   void initState() {
@@ -271,6 +283,7 @@ class _HomePageState extends State<HomePage> {
     _localRenderer?.dispose();
     _remoteRenderer?.dispose();
     _localStream?.dispose();
+    _uriController.dispose();
     super.dispose();
   }
 
@@ -280,9 +293,17 @@ class _HomePageState extends State<HomePage> {
 
     final provider = Provider.of<SIPClientProvider>(context, listen: false);
     provider.startDialing();
-    _logger.i(" LOGGERTHIS: Prepare DIalling");
+    _logger.i(" LOGGERTHIS: Prepare Dialing");
 
-    // await provider.sipUAHelper.call('sip:target@zada-acd.servobot.ai');
+    // Get the target URI from the text input
+    final targetURI = _globalVar.targetURI;
+    if (targetURI.isEmpty) {
+      _logger.e("LOGGERTHIS: Target URI is empty");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please enter a valid target URI")),
+      );
+      return;
+    }
 
     final mediaConstraints = <String, dynamic>{
       "audio": true,
@@ -303,12 +324,9 @@ class _HomePageState extends State<HomePage> {
         _localRenderer?.srcObject = _localStream;
       });
 
-      /* URI Target: Digunakan untuk mengidentifikasi pengguna lain yang di  hubungi saat melakukan panggilan. */
-      _logger.i(" LOGGERTHIS: Making call to sip:target@zada-acd.servobot.ai");
-
-      await _sipHelper?.call('sip:target@zada-acd.servobot.ai',
-          mediaStream: _localStream);
-      _logger.i(" LOGGERTHIS: Dialing...");
+      _logger.i("LOGGERTHIS: Making call to $targetURI");
+      await _sipHelper?.call(targetURI, mediaStream: _localStream);
+      _logger.i("LOGGERTHIS: Dialing...");
     } catch (e) {
       _logger.e("LOGGERTHIS: Error accessing media devices: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -334,7 +352,7 @@ class _HomePageState extends State<HomePage> {
         final callOptions = _sipHelper!.buildCallOptions(true)
           ..['mediaStream'] = _localStream;
         currentCall.answer(callOptions);
-        _logger.i(" LOGGERTHIS: Answering call...");
+        _logger.i("LOGGERTHIS: Answering call...");
       } catch (e) {
         _logger.e("LOGGERTHIS: Error answering call: $e");
       }
@@ -362,7 +380,7 @@ class _HomePageState extends State<HomePage> {
 
   void _cancelDialing() {
     final provider = Provider.of<SIPClientProvider>(context, listen: false);
-    provider.endDialing(); // Mengubah status isDialing menjadi false
+    provider.endDialing();
     _logger.i("LOGGERTHIS: Cancel dialing pressed");
 
     provider.setErrorMessage("DIALING CANCELLED");
@@ -522,6 +540,30 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
+
+              Positioned(
+                top: 140,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _uriController,
+                    decoration: const InputDecoration(
+                      labelText:
+                          "Target URI", // Tetap ditampilkan sebagai label
+                      hintText:
+                          "e.g., sip:target@zada-acd.servobot.ai", // Sebagai placeholder
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      _globalVar.targetURI = value;
+                    },
+                  ),
+                ),
+              ),
+
               // Call control buttons at the bottom
 
               Positioned(
@@ -535,6 +577,389 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       ElevatedButton(
                         onPressed: provider.isDialing ? null : _makeCall,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("Dial"),
+                      ),
+                      ElevatedButton(
+                        onPressed: isCallActive
+                            ? _answerCall
+                            : null, // Disable if not being called
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("Answer"),
+                      ),
+                      provider.isDialing
+                          ? ElevatedButton(
+                              onPressed: _cancelDialing,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text("Cancel Dialing"),
+                            )
+                          : ElevatedButton(
+                              onPressed: isCallActive ? _endCall : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text("End Call"),
+                            ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+ */
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final Logger _logger = Logger();
+  SIPUAHelper? _sipHelper;
+  RTCVideoRenderer? _localRenderer;
+  RTCVideoRenderer? _remoteRenderer;
+  MediaStream? _localStream;
+  final GlobalVar _globalVar = GlobalVar.instance;
+  final TextEditingController _uriController = TextEditingController();
+
+  Offset _localVideoOffset = const Offset(260.0, 600.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _sipHelper =
+        Provider.of<SIPClientProvider>(context, listen: false).sipUAHelper;
+    _initRenderers();
+  }
+
+  Future<void> _initRenderers() async {
+    _localRenderer = RTCVideoRenderer();
+    _remoteRenderer = RTCVideoRenderer();
+    await _localRenderer!.initialize();
+    await _remoteRenderer!.initialize();
+  }
+
+  @override
+  void dispose() {
+    _localRenderer?.dispose();
+    _remoteRenderer?.dispose();
+    _localStream?.dispose();
+    _uriController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _makeCall() async {
+    _logger.i(" LOGGERTHIS: Executing _makeCall");
+    _globalVar.errorMessageGlobal = "";
+
+    final provider = Provider.of<SIPClientProvider>(context, listen: false);
+    provider.startDialing();
+    _logger.i(" LOGGERTHIS: Prepare Dialing");
+
+    // Get the target URI from the text input
+    final targetURI = _globalVar.targetURI;
+    if (targetURI.isEmpty) {
+      _logger.e("LOGGERTHIS: Target URI is empty");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please enter a valid target URI")),
+      );
+      return;
+    }
+
+    final mediaConstraints = <String, dynamic>{
+      "audio": true,
+      "video": {
+        "mandatory": {
+          "minWidth": "640",
+          "minHeight": "480",
+          "minFrameRate": "30"
+        },
+        "facingMode": "user"
+      },
+    };
+
+    try {
+      _localStream =
+          await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      setState(() {
+        _localRenderer?.srcObject = _localStream;
+      });
+
+      _logger.i("LOGGERTHIS: Making call to $targetURI");
+      await _sipHelper?.call(targetURI, mediaStream: _localStream);
+      _logger.i("LOGGERTHIS: Dialing...");
+    } catch (e) {
+      _logger.e("LOGGERTHIS: Error accessing media devices: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to access media devices")));
+    }
+  }
+
+  Future<void> _answerCall() async {
+    final currentCall =
+        Provider.of<SIPClientProvider>(context, listen: false).currentCall;
+    if (currentCall != null) {
+      try {
+        final mediaConstraints = <String, dynamic>{
+          "audio": true,
+          "video": true
+        };
+        _localStream =
+            await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        setState(() {
+          _localRenderer?.srcObject = _localStream;
+        });
+
+        final callOptions = _sipHelper!.buildCallOptions(true)
+          ..['mediaStream'] = _localStream;
+        currentCall.answer(callOptions);
+        _logger.i("LOGGERTHIS: Answering call...");
+      } catch (e) {
+        _logger.e("LOGGERTHIS: Error answering call: $e");
+      }
+    } else {
+      _logger.w("LOGGERTHIS: No incoming call to answer");
+    }
+  }
+
+  void _endCall() {
+    final currentCall =
+        Provider.of<SIPClientProvider>(context, listen: false).currentCall;
+    if (currentCall != null) {
+      currentCall.hangup();
+
+      setState(() {
+        _localRenderer?.srcObject = null;
+        _remoteRenderer?.srcObject = null;
+        _localStream?.dispose();
+        _localStream = null;
+      });
+    } else {
+      _logger.w("LOGGERTHIS: No active call to end");
+    }
+  }
+
+  void _cancelDialing() {
+    final provider = Provider.of<SIPClientProvider>(context, listen: false);
+    provider.endDialing();
+    _logger.i("LOGGERTHIS: Cancel dialing pressed");
+
+    provider.setErrorMessage("DIALING CANCELLED");
+
+    final currentCall = provider.currentCall;
+    if (currentCall != null) {
+      _logger.i("LOGGERTHIS: Hanging up current call");
+      currentCall.hangup();
+      setState(() {
+        _localRenderer?.srcObject = null;
+        _remoteRenderer?.srcObject = null;
+        _localStream?.dispose();
+        _localStream = null;
+      });
+    } else {
+      _logger.w("LOGGERTHIS: No active call to hang up");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SIPClientProvider>(
+      builder: (context, provider, child) {
+        bool isCallActive = provider.currentCall != null && provider.isDialing;
+
+        return Scaffold(
+          body: Stack(
+            children: [
+              // Main content with video views
+              Column(
+                children: [
+                  const Text(
+                    "Version: 1.3",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Container(
+                            margin: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              border: Border.all(),
+                              borderRadius: BorderRadius.circular(8.0),
+                              color: Colors.black54,
+                            ),
+                            child: RTCVideoView(_remoteRenderer!),
+                          ),
+                        ),
+                        Positioned(
+                          left: _localVideoOffset.dx,
+                          top: _localVideoOffset.dy,
+                          child: Draggable(
+                            feedback: Container(
+                              width: 120,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                border: Border.all(),
+                                borderRadius: BorderRadius.circular(8.0),
+                                color: Colors.black54,
+                              ),
+                              child: RTCVideoView(_localRenderer!),
+                            ),
+                            childWhenDragging:
+                                Container(), // Empty space when dragging
+                            onDragStarted: () {
+                              setState(() {});
+                            },
+
+                            onDragEnd: (details) {
+                              setState(() {
+                                // Ambil offset tanpa pengurangan
+                                double newX = details.offset.dx;
+                                double newY = details.offset.dy;
+
+                                // Dapatkan dimensi layar
+                                double screenWidth =
+                                    MediaQuery.of(context).size.width;
+                                double screenHeight =
+                                    MediaQuery.of(context).size.height;
+
+                                // Hitung batas
+                                newX = newX.clamp(
+                                    0.0,
+                                    screenWidth -
+                                        120); // 120 adalah lebar video lokal
+                                newY = newY.clamp(
+                                    0.0,
+                                    screenHeight -
+                                        160); // 160 adalah tinggi video lokal
+
+                                _localVideoOffset = Offset(newX, newY);
+                              });
+                            },
+
+                            child: Container(
+                              width: 120,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                border: Border.all(),
+                                borderRadius: BorderRadius.circular(8.0),
+                                color: Colors.black54,
+                              ),
+                              child: RTCVideoView(_localRenderer!),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              // Error and status messages overlay
+
+              if (_globalVar.errorMessageGlobal.isNotEmpty)
+                Positioned(
+                  top: 90,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    color: Colors.red,
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(
+                          _globalVar.errorMessageGlobal,
+                          style: const TextStyle(color: Colors.white),
+                        )),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_globalVar.statusMessageGlobal.isNotEmpty)
+                Positioned(
+                  top:
+                      40, // Adjust as needed to avoid overlap with error message
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    color: Colors.blue,
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(
+                          _globalVar.statusMessageGlobal,
+                          style: const TextStyle(color: Colors.white),
+                        )),
+                      ],
+                    ),
+                  ),
+                ),
+
+              Positioned(
+                top: 140,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _uriController,
+                    decoration: const InputDecoration(
+                      labelText:
+                          "Target URI", // Tetap ditampilkan sebagai label
+                      hintText:
+                          "e.g., sip:target@zada-acd.servobot.ai", // Sebagai placeholder
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      _globalVar.targetURI = value; // Update targetURI
+                      setState(
+                          () {}); // Rebuild to reflect the enabled/disabled state of the button
+                    },
+                  ),
+                ),
+              ),
+
+              // Call control buttons at the bottom
+
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _globalVar.targetURI.isNotEmpty &&
+                                !provider.isDialing
+                            ? _makeCall
+                            : null, // Disable if targetURI is empty
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,

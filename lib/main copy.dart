@@ -1,318 +1,187 @@
+
+
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
 import 'package:sip_ua/sip_ua.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:logger/logger.dart';
 
-void main() {
-  Logger.level = Level.info;
-
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => SIPClientProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
-}
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Magang',
+      title: 'SIP Messaging Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        primarySwatch: Colors.blue,
       ),
-      home: const HomePage(title: 'Home Page'),
+      home: SIPMessageScreen(),
     );
   }
 }
 
-class SIPClientProvider with ChangeNotifier {
-  final SIPUAHelper _sipUAHelper = SIPUAHelper();
-  Call? currentCall;
-  String errorMessage = "";
-  String statusMessage = "Disconnected";
-
-  SIPClientProvider() {
-    _initializeSIP();
-  }
-
-  void _initializeSIP() async {
-    try {
-      UaSettings uaSettings = UaSettings()
-        ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
-        ..password = "1234"
-        ..authorizationUser = "customer"
-        ..userAgent = "customer"
-        ..transportType = TransportType.WS
-        ..webSocketSettings.allowBadCertificate = true
-        ..uri = "sip:customer@zada-acd.servobot.ai"
-        ..displayName = "customer";
-
-      await _sipUAHelper.start(uaSettings);
-      _sipUAHelper.addSipUaHelperListener(MySIPListener(this));
-
-      statusMessage = "Connected to SIP server";
-      notifyListeners();
-    } catch (e) {
-      errorMessage = "Error initializing SIP: $e";
-      notifyListeners();
-    }
-  }
-
-  void updateStatus(String message) {
-    statusMessage = message;
-    notifyListeners();
-  }
-
-  void updateError(String message) {
-    errorMessage = message;
-    notifyListeners();
-  }
-
-  SIPUAHelper get sipUAHelper => _sipUAHelper;
+class SIPMessageScreen extends StatefulWidget {
+  @override
+  _SIPMessageScreenState createState() => _SIPMessageScreenState();
 }
 
-class MySIPListener extends SipUaHelperListener {
-  final SIPClientProvider provider;
+class _SIPMessageScreenState extends State<SIPMessageScreen> implements SipUaHelperListener {
+  final SIPUAHelper _helper = SIPUAHelper();
+  final Logger _logger = Logger(); // Inisialisasi logger
 
-  MySIPListener(this.provider);
-
-  @override
-  void registrationStateChanged(RegistrationState state) {
-    if (state.state == RegistrationStateEnum.REGISTERED) {
-      provider.updateStatus("Registered with SIP server");
-    } else if (state.state == RegistrationStateEnum.UNREGISTERED) {
-      provider.updateStatus("Unregistered from SIP server");
-    } else if (state.state == RegistrationStateEnum.NONE) {
-      provider.updateStatus("Registration failed: ${state.cause}");
-    }
-  }
-
-  @override
-  void callStateChanged(Call call, CallState state) {
-    provider.currentCall = call;
-
-    switch (state.state) {
-      case CallStateEnum.CONNECTING:
-        provider.updateStatus("Connecting...");
-        break;
-      case CallStateEnum.PROGRESS:
-        provider.updateStatus("In Progress...");
-        break;
-      case CallStateEnum.ACCEPTED:
-        provider.updateStatus("Call Accepted");
-        break;
-      case CallStateEnum.CONFIRMED:
-        provider.updateStatus("Call Confirmed");
-        break;
-      case CallStateEnum.ENDED:
-        provider.updateStatus("Call Ended");
-        provider.currentCall = null;
-        break;
-      default:
-        break;
-    }
-  }
-  
-  @override
-  void onNewMessage(SIPMessageRequest msg) {
-    print("New Message received: $msg");
-  }
-  
-  @override
-  void onNewNotify(Notify ntf) {
-    print("New notification received: $ntf");
-  }
-
-  @override
-  void onNewReinvite(ReInvite event) {
-  print("Received a re-invite request");
-  }
-
-
-  @override
-  void transportStateChanged(TransportState state) {
-    print("DEBUG Transport state: ${state.state}");
-  
-    if (state.state == TransportStateEnum.DISCONNECTED) {
-      print("DEBUG Transport connection closed.");
-    } else if (state.state == TransportStateEnum.CONNECTED) {
-      print("DEBUG Transport connected to the server.");
-    }
-  }
-}
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  SIPUAHelper? _sipHelper;
-  RTCVideoRenderer _localRenderer = RTCVideoRenderer();
-  RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
-  MediaStream? _localStream;
+  String _status = "Connecting...";
+  TextEditingController _messageController = TextEditingController();
+  String _responseMessage = "";
 
   @override
   void initState() {
     super.initState();
-    _sipHelper = Provider.of<SIPClientProvider>(context, listen: false).sipUAHelper;
-    _initRenderers();
-  }
-
-  Future<void> _initRenderers() async {
-    await _localRenderer.initialize();
-    await _remoteRenderer.initialize();
+    _initializeSIP();
+    _helper.addSipUaHelperListener(this);
   }
 
   @override
   void dispose() {
-    _localRenderer.dispose();
-    _remoteRenderer.dispose();
-    _localStream?.dispose();
+    _helper.removeSipUaHelperListener(this);
+    _messageController.dispose(); // Dispose the controller to free resources
     super.dispose();
   }
 
-  Future<void> _makeCall() async {
-    try {
-      _localStream = await navigator.mediaDevices.getUserMedia({
-        "audio": true,
-        "video": {"facingMode": "user"}
-      });
+  // Fungsi untuk konfigurasi dan koneksi ke server SIP
+  void _initializeSIP() {
+    UaSettings settings = UaSettings();
+    settings.webSocketUrl = 'wss://zada-acd.servobot.ai/wsproxy';
+    settings.uri = 'sip:00003@zada-acd.servobot.ai';
+    settings.authorizationUser = 'customer';
+    settings.password = '1234';
+    settings.displayName = 'Customer';
+    settings.userAgent = 'Flutter SIP Client';
+    settings.transportType = TransportType.WS;
 
-      setState(() {
-        _localRenderer.srcObject = _localStream;
-      });
-
-      await _sipHelper?.call('sip:target@zada-acd.servobot.ai', mediaStream: _localStream);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to access media devices")),
-      );
-    }
+    _logger.i("LOGGERTHIS Initializing SIP with settings: $settings");
+    _helper.start(settings);
   }
 
-  Future<void> _answerCall() async {
-    final currentCall = Provider.of<SIPClientProvider>(context, listen: false).currentCall;
-    if (currentCall != null) {
+  // Fungsi untuk mengirim pesan
+  Future<void> _sendMessage() async {
+    String target = 'sip:00003@zada-acd.servobot.ai';
+    String message = _messageController.text;
+
+    if (message.isNotEmpty) {
       try {
-        _localStream = await navigator.mediaDevices.getUserMedia({
-          "audio": true,
-          "video": true
-        });
-
+        _logger.i("LOGGERTHIS Sending message to $target: $message");
+        await _helper.sendMessage(target, message);
         setState(() {
-          _localRenderer.srcObject = _localStream;
+          _responseMessage = "Message sent: $message";
         });
-
-        final callOptions = _sipHelper!.buildCallOptions(true)..['mediaStream'] = _localStream;
-        currentCall.answer(callOptions);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error answering call")),
-        );
+        _logger.i("LOGGERTHIS Message sent successfully");
+      } catch (error) {
+        setState(() {
+          _responseMessage = "Failed to send message: $error";
+        });
+        _logger.e("Failed to send message: $error");
       }
     }
   }
 
-  void _endCall() {
-    final currentCall = Provider.of<SIPClientProvider>(context, listen: false).currentCall;
-    if (currentCall != null) {
-      currentCall.hangup();
+  // Fungsi ini dipanggil saat menerima pesan
+  @override
+  void onNewMessage(SIPMessageRequest msg) {
+    if (msg.request.body != null) {
+      _logger.i("LOGGERTHIS Received message: ${msg.request.body}");
       setState(() {
-        _localRenderer.srcObject = null;
-        _remoteRenderer.srcObject = null;
-        _localStream?.dispose();
-        _localStream = null;
+        _responseMessage = "Received message: ${msg.request.body}";
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<SIPClientProvider>(
-      builder: (context, provider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(widget.title),
-            actions: [
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    provider.statusMessage,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          body: Column(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('SIP Messaging Demo'),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (provider.errorMessage.isNotEmpty)
-                Container(
-                  color: Colors.red,
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(provider.errorMessage, style: const TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                ),
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(border: Border.all()),
-                        child: RTCVideoView(_localRenderer),
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(border: Border.all()),
-                        child: RTCVideoView(_remoteRenderer),
-                      ),
-                    ),
-                  ],
+              Text(
+                _status,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              TextField(
+                controller: _messageController,
+                decoration: InputDecoration(
+                  labelText: "Enter message",
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(onPressed: _makeCall, child: const Text("Dial")),
-                    ElevatedButton(onPressed: _answerCall, child: const Text("Answer")),
-                    ElevatedButton(
-                      onPressed: _endCall,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text("Hang Up"),
-                    ),
-                  ],
-                ),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: _sendMessage,
+                child: Text("Send Message"),
+              ),
+              SizedBox(height: 20),
+              Text(
+                _responseMessage,
+                style: TextStyle(fontSize: 16),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
+  }
+
+  // Implementasi listener lainnya
+  void onRegistrationStateChanged(RegistrationState state) {
+    _logger.i("LOGGERTHIS Registration state changed: ${state.state}");
+    setState(() {
+      _status = 'Registration state: ${state.state}';
+    });
+  }
+
+  void onTransportStateChanged(TransportState state) {
+    _logger.i("LOGGERTHIS Transport state changed: ${state.state}");
+    setState(() {
+      _status = 'Transport state: ${state.state}';
+    });
+  }
+
+  @override
+  void onNewNotify(Notify message) {
+    _logger.i("LOGGERTHIS Received new notify: ${message}");
+  }
+
+  void onAcknowledgeReceived() {
+    _logger.i("LOGGERTHIS Acknowledge received");
+  }
+
+  void onAcknowledgeSent() {
+    _logger.i("LOGGERTHIS Acknowledge sent");
+  }
+
+  void onAcknowledgeFailure() {
+    _logger.w("Acknowledge failed");
+  }
+
+  @override
+  void callStateChanged(Call call, CallState state) {
+    _logger.i("LOGGERTHIS Call state changed: ${state.state}");
+  }
+
+  @override
+  void onNewReinvite(ReInvite event) {
+    _logger.i("LOGGERTHIS Received new reinvite");
+  }
+
+  @override
+  void registrationStateChanged(RegistrationState state) {
+    _logger.i("LOGGERTHIS Registration state changed (deprecated listener): ${state.state}");
+  }
+
+  @override
+  void transportStateChanged(TransportState state) {
+    _logger.i("LOGGERTHIS Transport state changed (deprecated listener): ${state.state}");
   }
 }

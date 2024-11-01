@@ -9,7 +9,7 @@ class GlobalVar extends ChangeNotifier {
   Call? _currentCall; // Moved from SIPClientProvider
   String _errorMessageGlobal = ""; // Moved from SIPClientProvider
   String _statusMessageGlobal = ""; // Moved from SIPClientProvider
-
+  String _targetURI = "";
 
   Call? get currentCall => _currentCall;
   set currentCall(Call? call) {
@@ -27,6 +27,12 @@ class GlobalVar extends ChangeNotifier {
 
   set statusMessageGlobal(String value) {
     _statusMessageGlobal = value;
+    notifyListeners();
+  }
+
+  String get targetURI => _targetURI;
+  set targetURI(String value) {
+    _targetURI = value;
     notifyListeners();
   }
 
