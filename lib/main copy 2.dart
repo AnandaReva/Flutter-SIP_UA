@@ -73,8 +73,9 @@ class SIPClientProvider with ChangeNotifier {
       uaSettings.userAgent = 'Flutter SIP Client';
       uaSettings.transportType = TransportType.WS;
 
-      _logger.i("LOGGERTHIS: Using URI: ${uaSettings.uri}");
-      _logger.i("LOGGERTHIS: Using Username: ${uaSettings.authorizationUser}");
+      _logger.i(" LOGGERTHIS: Using URI: ${uaSettings.uri}");
+      _logger.i(
+          " LOGGERTHIS: Using authorizationUser: ${uaSettings.authorizationUser}");
       await _sipUAHelper.start(uaSettings);
       _sipUAHelper.addSipUaHelperListener(MySIPListener(this));
 
@@ -113,16 +114,24 @@ class MySIPListener extends SipUaHelperListener {
     String message;
     switch (state.state) {
       case RegistrationStateEnum.REGISTERED:
-        message = "Registered with SIP server";
+        message = "Registered with SIP server ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
         break;
       case RegistrationStateEnum.UNREGISTERED:
-        message = "Unregistered from SIP server";
+        message = "Unregistered from SIP server ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
         break;
       case RegistrationStateEnum.NONE:
         message = "Registration failed: ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
+        break;
+      case RegistrationStateEnum.REGISTRATION_FAILED:
+        message = "Registration failed: ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
         break;
       default:
-        message = "Unknown registration state";
+        message = "Unknown registration state, ${state.cause}";
+        _logger.i(" LOGGERTHIS: $message");
     }
     provider.setErrorMessage(message);
   }
@@ -246,10 +255,9 @@ class _HomePageState extends State<HomePage> {
   RTCVideoRenderer? _remoteRenderer;
   MediaStream? _localStream;
   final GlobalVar _globalVar = GlobalVar.instance;
+  final TextEditingController _uriController = TextEditingController();
 
-  //Offset _localVideoOffset = Offset(16.0, 16.0); // Initial position
-  Offset _localVideoOffset =
-      const Offset(260.0, 600.0); //Initial position kanan bawah
+  Offset _localVideoOffset = const Offset(260.0, 600.0);
 
   @override
   void initState() {
@@ -271,6 +279,7 @@ class _HomePageState extends State<HomePage> {
     _localRenderer?.dispose();
     _remoteRenderer?.dispose();
     _localStream?.dispose();
+    _uriController.dispose();
     super.dispose();
   }
 
@@ -280,9 +289,17 @@ class _HomePageState extends State<HomePage> {
 
     final provider = Provider.of<SIPClientProvider>(context, listen: false);
     provider.startDialing();
-    _logger.i(" LOGGERTHIS: Prepare DIalling");
+    _logger.i(" LOGGERTHIS: Prepare Dialing");
 
-    // await provider.sipUAHelper.call('sip:target@zada-acd.servobot.ai');
+    // Get the target URI from the text input
+    final targetURI = _globalVar.targetURI;
+    if (targetURI.isEmpty) {
+      _logger.e("LOGGERTHIS: Target URI is empty");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please enter a valid target URI")),
+      );
+      return;
+    }
 
     final mediaConstraints = <String, dynamic>{
       "audio": true,
@@ -303,13 +320,9 @@ class _HomePageState extends State<HomePage> {
         _localRenderer?.srcObject = _localStream;
       });
 
-      /* URI Target: Digunakan untuk mengidentifikasi pengguna lain yang di  hubungi saat melakukan panggilan. */
-      _logger
-          .i(" LOGGERTHIS: Making call to sip:customer@zada-acd.servobot.ai");
-
-      await _sipHelper?.call('sip:customer@zada-acd.servobot.ai',
-          mediaStream: _localStream);
-      _logger.i(" LOGGERTHIS: Dialing...");
+      _logger.i("LOGGERTHIS: Making call to $targetURI");
+      await _sipHelper?.call(targetURI, mediaStream: _localStream);
+      _logger.i("LOGGERTHIS: Dialing...");
     } catch (e) {
       _logger.e("LOGGERTHIS: Error accessing media devices: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -335,7 +348,7 @@ class _HomePageState extends State<HomePage> {
         final callOptions = _sipHelper!.buildCallOptions(true)
           ..['mediaStream'] = _localStream;
         currentCall.answer(callOptions);
-        _logger.i(" LOGGERTHIS: Answering call...");
+        _logger.i("LOGGERTHIS: Answering call...");
       } catch (e) {
         _logger.e("LOGGERTHIS: Error answering call: $e");
       }
@@ -363,7 +376,7 @@ class _HomePageState extends State<HomePage> {
 
   void _cancelDialing() {
     final provider = Provider.of<SIPClientProvider>(context, listen: false);
-    provider.endDialing(); // Mengubah status isDialing menjadi false
+    provider.endDialing();
     _logger.i("LOGGERTHIS: Cancel dialing pressed");
 
     provider.setErrorMessage("DIALING CANCELLED");
@@ -396,7 +409,7 @@ class _HomePageState extends State<HomePage> {
               Column(
                 children: [
                   const Text(
-                    "Version: 1.2",
+                    "Version: 1.3",
                     style: TextStyle(color: Colors.black),
                   ),
                   Expanded(
@@ -523,6 +536,32 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
+
+              Positioned(
+                top: 140,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _uriController,
+                    decoration: const InputDecoration(
+                      labelText:
+                          "Target URI", // Tetap ditampilkan sebagai label
+                      hintText:
+                          "e.g., sip:target@zada-acd.servobot.ai", // Sebagai placeholder
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      _globalVar.targetURI = value; // Update targetURI
+                      setState(
+                          () {}); // Rebuild to reflect the enabled/disabled state of the button
+                    },
+                  ),
+                ),
+              ),
+
               // Call control buttons at the bottom
 
               Positioned(
@@ -535,7 +574,10 @@ class _HomePageState extends State<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       ElevatedButton(
-                        onPressed: provider.isDialing ? null : _makeCall,
+                        onPressed: _globalVar.targetURI.isNotEmpty &&
+                                !provider.isDialing
+                            ? _makeCall
+                            : null, // Disable if targetURI is empty
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,

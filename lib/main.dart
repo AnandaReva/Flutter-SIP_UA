@@ -165,14 +165,16 @@ class MySIPListener extends SipUaHelperListener {
       case CallStateEnum.ENDED:
         _logger.i(" LOGGERTHIS: Call ended");
         message = "Call Ended";
-        provider.setErrorMessage(message);
+
         provider.endDialing();
         provider._globalVar.currentCall = null;
         break;
       case CallStateEnum.FAILED:
         _logger.e("LOGGERTHIS: Call failed: ${state.cause}");
         message = "Call Failed: ${state.cause}";
-        provider.setErrorMessage(message);
+
+           provider.setErrorMessage(message);
+
         provider.endDialing();
         provider._globalVar.currentCall = null;
         return;
@@ -212,6 +214,8 @@ class MySIPListener extends SipUaHelperListener {
         break;
     }
 
+   // provider.setErrorMessage(message);
+
     provider.updateStatus(message);
   }
 
@@ -241,10 +245,6 @@ class MySIPListener extends SipUaHelperListener {
   }
 }
 
-/* 
-
-
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -260,6 +260,9 @@ class _HomePageState extends State<HomePage> {
   MediaStream? _localStream;
   final GlobalVar _globalVar = GlobalVar.instance;
   final TextEditingController _uriController = TextEditingController();
+
+  bool _isMicMuted = false;
+  bool _isCameraActive = false;
 
   Offset _localVideoOffset = const Offset(260.0, 600.0);
 
@@ -285,6 +288,34 @@ class _HomePageState extends State<HomePage> {
     _localStream?.dispose();
     _uriController.dispose();
     super.dispose();
+  }
+
+  void _toggleMic() {
+    setState(() {
+      _isMicMuted = !_isMicMuted;
+    });
+    if (_localStream != null) {
+      _localStream!.getAudioTracks().forEach((track) {
+        track.enabled =
+            !_isMicMuted; // Mengaktifkan atau menonaktifkan mikrofon
+      });
+    }
+    _logger
+        .i(" LOGGERTHIS: Microphone is ${_isMicMuted ? 'muted' : 'unmuted'}");
+  }
+
+  // Fungsi untuk mengubah status video
+  void _toggleCamera() {
+    setState(() {
+      _isCameraActive = !_isCameraActive;
+    });
+    if (_localStream != null) {
+      _localStream!.getVideoTracks().forEach((track) {
+        track.enabled =
+            !_isCameraActive; // Mengaktifkan atau menonaktifkan Kamera
+      });
+    }
+    _logger.i(" LOGGERTHIS: Video is ${_isCameraActive ? 'off' : 'on'}");
   }
 
   Future<void> _makeCall() async {
@@ -413,385 +444,7 @@ class _HomePageState extends State<HomePage> {
               Column(
                 children: [
                   const Text(
-                    "Version: 1.2",
-                    style: TextStyle(color: Colors.black),
-                  ),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Container(
-                            margin: const EdgeInsets.all(8.0),
-                            decoration: BoxDecoration(
-                              border: Border.all(),
-                              borderRadius: BorderRadius.circular(8.0),
-                              color: Colors.black54,
-                            ),
-                            child: RTCVideoView(_remoteRenderer!),
-                          ),
-                        ),
-                        Positioned(
-                          left: _localVideoOffset.dx,
-                          top: _localVideoOffset.dy,
-                          child: Draggable(
-                            feedback: Container(
-                              width: 120,
-                              height: 160,
-                              decoration: BoxDecoration(
-                                border: Border.all(),
-                                borderRadius: BorderRadius.circular(8.0),
-                                color: Colors.black54,
-                              ),
-                              child: RTCVideoView(_localRenderer!),
-                            ),
-                            childWhenDragging:
-                                Container(), // Empty space when dragging
-                            onDragStarted: () {
-                              setState(() {});
-                            },
-
-                            onDragEnd: (details) {
-                              setState(() {
-                                // Ambil offset tanpa pengurangan
-                                double newX = details.offset.dx;
-                                double newY = details.offset.dy;
-
-                                // Dapatkan dimensi layar
-                                double screenWidth =
-                                    MediaQuery.of(context).size.width;
-                                double screenHeight =
-                                    MediaQuery.of(context).size.height;
-
-                                // Hitung batas
-                                newX = newX.clamp(
-                                    0.0,
-                                    screenWidth -
-                                        120); // 120 adalah lebar video lokal
-                                newY = newY.clamp(
-                                    0.0,
-                                    screenHeight -
-                                        160); // 160 adalah tinggi video lokal
-
-                                _localVideoOffset = Offset(newX, newY);
-                              });
-                            },
-
-                            child: Container(
-                              width: 120,
-                              height: 160,
-                              decoration: BoxDecoration(
-                                border: Border.all(),
-                                borderRadius: BorderRadius.circular(8.0),
-                                color: Colors.black54,
-                              ),
-                              child: RTCVideoView(_localRenderer!),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              // Error and status messages overlay
-
-              if (_globalVar.errorMessageGlobal.isNotEmpty)
-                Positioned(
-                  top: 90,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    color: Colors.red,
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: Text(
-                          _globalVar.errorMessageGlobal,
-                          style: const TextStyle(color: Colors.white),
-                        )),
-                      ],
-                    ),
-                  ),
-                ),
-              if (_globalVar.statusMessageGlobal.isNotEmpty)
-                Positioned(
-                  top:
-                      40, // Adjust as needed to avoid overlap with error message
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    color: Colors.blue,
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: Text(
-                          _globalVar.statusMessageGlobal,
-                          style: const TextStyle(color: Colors.white),
-                        )),
-                      ],
-                    ),
-                  ),
-                ),
-
-              Positioned(
-                top: 140,
-                left: 0,
-                right: 0,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: TextFormField(
-                    controller: _uriController,
-                    decoration: const InputDecoration(
-                      labelText:
-                          "Target URI", // Tetap ditampilkan sebagai label
-                      hintText:
-                          "e.g., sip:target@zada-acd.servobot.ai", // Sebagai placeholder
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) {
-                      _globalVar.targetURI = value;
-                    },
-                  ),
-                ),
-              ),
-
-              // Call control buttons at the bottom
-
-              Positioned(
-                bottom: 20,
-                left: 0,
-                right: 0,
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton(
-                        onPressed: provider.isDialing ? null : _makeCall,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text("Dial"),
-                      ),
-                      ElevatedButton(
-                        onPressed: isCallActive
-                            ? _answerCall
-                            : null, // Disable if not being called
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text("Answer"),
-                      ),
-                      provider.isDialing
-                          ? ElevatedButton(
-                              onPressed: _cancelDialing,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text("Cancel Dialing"),
-                            )
-                          : ElevatedButton(
-                              onPressed: isCallActive ? _endCall : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text("End Call"),
-                            ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
- */
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  final Logger _logger = Logger();
-  SIPUAHelper? _sipHelper;
-  RTCVideoRenderer? _localRenderer;
-  RTCVideoRenderer? _remoteRenderer;
-  MediaStream? _localStream;
-  final GlobalVar _globalVar = GlobalVar.instance;
-  final TextEditingController _uriController = TextEditingController();
-
-  Offset _localVideoOffset = const Offset(260.0, 600.0);
-
-  @override
-  void initState() {
-    super.initState();
-    _sipHelper =
-        Provider.of<SIPClientProvider>(context, listen: false).sipUAHelper;
-    _initRenderers();
-  }
-
-  Future<void> _initRenderers() async {
-    _localRenderer = RTCVideoRenderer();
-    _remoteRenderer = RTCVideoRenderer();
-    await _localRenderer!.initialize();
-    await _remoteRenderer!.initialize();
-  }
-
-  @override
-  void dispose() {
-    _localRenderer?.dispose();
-    _remoteRenderer?.dispose();
-    _localStream?.dispose();
-    _uriController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _makeCall() async {
-    _logger.i(" LOGGERTHIS: Executing _makeCall");
-    _globalVar.errorMessageGlobal = "";
-
-    final provider = Provider.of<SIPClientProvider>(context, listen: false);
-    provider.startDialing();
-    _logger.i(" LOGGERTHIS: Prepare Dialing");
-
-    // Get the target URI from the text input
-    final targetURI = _globalVar.targetURI;
-    if (targetURI.isEmpty) {
-      _logger.e("LOGGERTHIS: Target URI is empty");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please enter a valid target URI")),
-      );
-      return;
-    }
-
-    final mediaConstraints = <String, dynamic>{
-      "audio": true,
-      "video": {
-        "mandatory": {
-          "minWidth": "640",
-          "minHeight": "480",
-          "minFrameRate": "30"
-        },
-        "facingMode": "user"
-      },
-    };
-
-    try {
-      _localStream =
-          await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      setState(() {
-        _localRenderer?.srcObject = _localStream;
-      });
-
-      _logger.i("LOGGERTHIS: Making call to $targetURI");
-      await _sipHelper?.call(targetURI, mediaStream: _localStream);
-      _logger.i("LOGGERTHIS: Dialing...");
-    } catch (e) {
-      _logger.e("LOGGERTHIS: Error accessing media devices: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to access media devices")));
-    }
-  }
-
-  Future<void> _answerCall() async {
-    final currentCall =
-        Provider.of<SIPClientProvider>(context, listen: false).currentCall;
-    if (currentCall != null) {
-      try {
-        final mediaConstraints = <String, dynamic>{
-          "audio": true,
-          "video": true
-        };
-        _localStream =
-            await navigator.mediaDevices.getUserMedia(mediaConstraints);
-        setState(() {
-          _localRenderer?.srcObject = _localStream;
-        });
-
-        final callOptions = _sipHelper!.buildCallOptions(true)
-          ..['mediaStream'] = _localStream;
-        currentCall.answer(callOptions);
-        _logger.i("LOGGERTHIS: Answering call...");
-      } catch (e) {
-        _logger.e("LOGGERTHIS: Error answering call: $e");
-      }
-    } else {
-      _logger.w("LOGGERTHIS: No incoming call to answer");
-    }
-  }
-
-  void _endCall() {
-    final currentCall =
-        Provider.of<SIPClientProvider>(context, listen: false).currentCall;
-    if (currentCall != null) {
-      currentCall.hangup();
-
-      setState(() {
-        _localRenderer?.srcObject = null;
-        _remoteRenderer?.srcObject = null;
-        _localStream?.dispose();
-        _localStream = null;
-      });
-    } else {
-      _logger.w("LOGGERTHIS: No active call to end");
-    }
-  }
-
-  void _cancelDialing() {
-    final provider = Provider.of<SIPClientProvider>(context, listen: false);
-    provider.endDialing();
-    _logger.i("LOGGERTHIS: Cancel dialing pressed");
-
-    provider.setErrorMessage("DIALING CANCELLED");
-
-    final currentCall = provider.currentCall;
-    if (currentCall != null) {
-      _logger.i("LOGGERTHIS: Hanging up current call");
-      currentCall.hangup();
-      setState(() {
-        _localRenderer?.srcObject = null;
-        _remoteRenderer?.srcObject = null;
-        _localStream?.dispose();
-        _localStream = null;
-      });
-    } else {
-      _logger.w("LOGGERTHIS: No active call to hang up");
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<SIPClientProvider>(
-      builder: (context, provider, child) {
-        bool isCallActive = provider.currentCall != null && provider.isDialing;
-
-        return Scaffold(
-          body: Stack(
-            children: [
-              // Main content with video views
-              Column(
-                children: [
-                  const Text(
-                    "Version: 1.3",
+                    "Version: 1.4",
                     style: TextStyle(color: Colors.black),
                   ),
                   Expanded(
@@ -993,6 +646,48 @@ class _HomePageState extends State<HomePage> {
                               ),
                               child: const Text("End Call"),
                             ),
+                    ],
+                  ),
+                ),
+              ),
+
+              Positioned(
+                bottom: 90,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(1.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Container(
+                        width: 50, // Diameter of the circle
+                        height: 50,
+                        decoration: const BoxDecoration(
+                          color: Colors.white, // Background color
+                          shape: BoxShape.circle, // Make it circular
+                        ),
+                        child: IconButton(
+                          onPressed: _toggleMic,
+                          icon: Icon(_isMicMuted ? Icons.mic_off : Icons.mic),
+                          color: _isMicMuted ? Colors.red : Colors.green,
+                        ),
+                      ),
+                      Container(
+                        width: 50, // Diameter of the circle
+                        height: 50,
+                        decoration: const BoxDecoration(
+                          color: Colors.white, // Background color
+                          shape: BoxShape.circle, // Make it circular
+                        ),
+                        child: IconButton(
+                          onPressed: _toggleCamera,
+                          icon: Icon(_isCameraActive
+                              ? Icons.videocam_off
+                              : Icons.videocam),
+                          color: _isCameraActive ? Colors.red : Colors.green,
+                        ),
+                      ),
                     ],
                   ),
                 ),
