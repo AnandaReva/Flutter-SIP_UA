@@ -58,18 +58,20 @@ class SIPClientProvider with ChangeNotifier {
     _logger.i(" LOGGERTHIS: Initializing SIP...");
     try {
       UaSettings uaSettings = UaSettings();
-      /*  ..webSocketUrl = "wss://zada-acd.servobot.ai/wsproxy"
-        ..password = "1234"
-        ..uri = "sip:customer@zada-acd.servobot.ai"
-        ..authorizationUser = "customer"
-        ..transportType = TransportType.WS
-        ..webSocketSettings.allowBadCertificate = true
-        ..displayName = "customer 1"; */
-      uaSettings.webSocketUrl = 'wss://zada-acd.servobot.ai/wsproxy';
+
+/*       uaSettings.webSocketUrl = 'wss://zada-acd.servobot.ai/wsproxy';
       uaSettings.uri = 'sip:00003@zada-acd.servobot.ai';
       uaSettings.authorizationUser = 'customer';
       uaSettings.password = '1234';
       uaSettings.displayName = 'Customer';
+      uaSettings.userAgent = 'Flutter SIP Client';
+      uaSettings.transportType = TransportType.WS; */
+
+      uaSettings.webSocketUrl = 'wss://winter.cayangqu.com/ws';
+      uaSettings.uri = 'sip:magang@winter.cayangqu.com';
+      uaSettings.authorizationUser = 'magang';
+      uaSettings.password = '1234';
+      uaSettings.displayName = 'Magang';
       uaSettings.userAgent = 'Flutter SIP Client';
       uaSettings.transportType = TransportType.WS;
 
@@ -122,9 +124,6 @@ class MySIPListener extends SipUaHelperListener {
         _logger.i(" LOGGERTHIS: $message");
         break;
       case RegistrationStateEnum.NONE:
-        message = "Registration failed: ${state.cause}";
-        _logger.i(" LOGGERTHIS: $message");
-        break;
       case RegistrationStateEnum.REGISTRATION_FAILED:
         message = "Registration failed: ${state.cause}";
         _logger.i(" LOGGERTHIS: $message");
@@ -136,87 +135,190 @@ class MySIPListener extends SipUaHelperListener {
     provider.setErrorMessage(message);
   }
 
-  @override
+/*   @override
   void callStateChanged(Call call, CallState state) {
-    provider._globalVar.currentCall = call;
+    provider.currentCall = call; // Update `currentCall`
 
     String message;
+
+    _logger.i(
+        "LOGGERTHIS: Current Call: ${provider.currentCall?.toString() ?? "null"}");
+
     switch (state.state) {
       case CallStateEnum.CALL_INITIATION:
-        _logger.i(" LOGGERTHIS: Call initiating...");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  initiating...");
         message = "Initiating Call...";
         break;
       case CallStateEnum.CONNECTING:
-        _logger.i(" LOGGERTHIS: Call connecting...");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  connecting...");
         message = "Connecting...";
         break;
       case CallStateEnum.PROGRESS:
-        _logger.i(" LOGGERTHIS: Call in progress...");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  in progress...");
         message = "In Progress...";
+        if (provider.currentCall == null) {
+          _logger.e(
+              "LOGGERTHIS: Warning! currentCall is null during PROGRESS state!");
+        }
         break;
       case CallStateEnum.ACCEPTED:
-        _logger.i(" LOGGERTHIS: Call accepted");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  accepted");
         message = "Call Accepted...";
         break;
       case CallStateEnum.CONFIRMED:
-        _logger.i(" LOGGERTHIS: Call confirmed");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  confirmed");
         message = "Call Confirmed...";
         break;
       case CallStateEnum.ENDED:
-        _logger.i(" LOGGERTHIS: Call ended");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  ended");
         message = "Call Ended";
-
         provider.endDialing();
-        provider._globalVar.currentCall = null;
+        provider.currentCall =  null; // Hapus `currentCall` jika panggilan berakhir
         break;
       case CallStateEnum.FAILED:
-        _logger.e("LOGGERTHIS: Call failed: ${state.cause}");
+        _logger.e("LOGGERTHIS: Call CallStateEnum  failed: ${state.cause}");
         message = "Call Failed: ${state.cause}";
-
-           provider.setErrorMessage(message);
-
         provider.endDialing();
-        provider._globalVar.currentCall = null;
-        return;
+        provider.currentCall = null; // Hapus `currentCall` jika panggilan gagal
+        break;
       case CallStateEnum.STREAM:
-        _logger.i(" LOGGERTHIS: Call stream updated");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  stream updated");
         message = "Stream Updated";
         break;
       case CallStateEnum.UNMUTED:
-        _logger.i(" LOGGERTHIS: Call unmuted");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  unmuted");
         message = "Call Unmuted";
         break;
       case CallStateEnum.MUTED:
-        _logger.i(" LOGGERTHIS: Call muted");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  muted");
         message = "Call Muted";
         break;
       case CallStateEnum.HOLD:
-        _logger.i(" LOGGERTHIS: Call on hold");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  on hold");
         message = "Call on Hold";
         break;
       case CallStateEnum.UNHOLD:
-        _logger.i(" LOGGERTHIS: Call resumed");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  resumed");
         message = "Call Resumed";
         break;
       case CallStateEnum.REFER:
-        _logger.i(" LOGGERTHIS: Call transfer initiated");
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  transfer initiated");
         message = "Call Transfer Initiated";
         break;
-
       case CallStateEnum.NONE:
         _logger.i(" LOGGERTHIS: No active call state");
         message = "No Active Call State";
         break;
-
       default:
         _logger.i(" LOGGERTHIS: Unknown Call State: ${state.state}");
         message = "Unknown Call State";
         break;
     }
 
-   // provider.setErrorMessage(message);
+    provider.updateStatus(message); // Update status dalam provider
+  }
+ */
 
-    provider.updateStatus(message);
+  @override
+  Future<void> callStateChanged(Call call, CallState state) async {
+    String message;
+
+    _logger.i("LOGGERTHIS: Current Call: ${call}");
+
+    switch (state.state) {
+      case CallStateEnum.CALL_INITIATION:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  initiating...");
+        message = "Initiating Call...";
+        break;
+      case CallStateEnum.CONNECTING:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  connecting...");
+        message = "Connecting...";
+        break;
+      case CallStateEnum.PROGRESS:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  in progress...");
+        message = "In Progress...";
+        if (call == null) {
+          _logger.e(
+              "LOGGERTHIS: Warning! currentCall is null during PROGRESS state!");
+        } else {
+          try {
+            // Minta izin dan dapatkan media stream untuk mikrofon
+            MediaStream mediaStream =
+                await navigator.mediaDevices.getUserMedia({
+              'audio': true, // Aktifkan mikrofon
+              'video': false // Nonaktifkan video
+            });
+
+            // Opsi untuk menjawab panggilan
+            Map<String, dynamic> options = {
+              'mediaConstraints': {'audio': true, 'video': false}
+            };
+
+            // Jawab panggilan dengan media stream
+            call.answer(options, mediaStream: mediaStream);
+            _logger.i("LOGGERTHIS: Call answered with microphone");
+          } catch (e) {
+            _logger.e("LOGGERTHIS: Error accessing microphone: $e");
+            // Handle error - mungkin tampilkan pesan error ke pengguna
+          }
+        }
+        break;
+      case CallStateEnum.ACCEPTED:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  accepted");
+        message = "Call Accepted...";
+        break;
+      case CallStateEnum.CONFIRMED:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  confirmed");
+        message = "Call Confirmed...";
+        break;
+      case CallStateEnum.ENDED:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  ended");
+        message = "Call Ended";
+        provider.endDialing();
+        provider.currentCall =
+            null; // Hapus `currentCall` jika panggilan berakhir
+        break;
+      case CallStateEnum.FAILED:
+        _logger.e("LOGGERTHIS: Call CallStateEnum  failed: ${state.cause}");
+        message = "Call Failed: ${state.cause}";
+        provider.endDialing();
+        provider.currentCall = null; // Hapus `currentCall` jika panggilan gagal
+        break;
+      case CallStateEnum.STREAM:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  stream updated");
+        message = "Stream Updated";
+        break;
+      case CallStateEnum.UNMUTED:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  unmuted");
+        message = "Call Unmuted";
+        break;
+      case CallStateEnum.MUTED:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  muted");
+        message = "Call Muted";
+        break;
+      case CallStateEnum.HOLD:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  on hold");
+        message = "Call on Hold";
+        break;
+      case CallStateEnum.UNHOLD:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  resumed");
+        message = "Call Resumed";
+        break;
+      case CallStateEnum.REFER:
+        _logger.i(" LOGGERTHIS: Call CallStateEnum  transfer initiated");
+        message = "Call Transfer Initiated";
+        break;
+      case CallStateEnum.NONE:
+        _logger.i(" LOGGERTHIS: No active call state");
+        message = "No Active Call State";
+        break;
+      default:
+        _logger.i(" LOGGERTHIS: Unknown Call State: ${state.state}");
+        message = "Unknown Call State";
+        break;
+    }
+
+    provider.updateStatus(message); // Update status dalam provider
   }
 
   @override
@@ -336,6 +438,9 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    _logger.i(
+        "LOGGERTHIS: Current Call: ${provider.currentCall?.toString() ?? "null"}");
+
     final mediaConstraints = <String, dynamic>{
       "audio": true,
       "video": {
@@ -368,11 +473,14 @@ class _HomePageState extends State<HomePage> {
   Future<void> _answerCall() async {
     final currentCall =
         Provider.of<SIPClientProvider>(context, listen: false).currentCall;
-    if (currentCall != null) {
+
+    // final provider = Provider.of<SIPClientProvider>(context, listen: false);
+
+    if (currentCall != null && currentCall.state == CallStateEnum.PROGRESS) {
       try {
         final mediaConstraints = <String, dynamic>{
           "audio": true,
-          "video": true
+          "video": true,
         };
         _localStream =
             await navigator.mediaDevices.getUserMedia(mediaConstraints);
@@ -435,7 +543,9 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Consumer<SIPClientProvider>(
       builder: (context, provider, child) {
-        bool isCallActive = provider.currentCall != null && provider.isDialing;
+        //   bool isCallActive = provider.currentCall != null && provider.isDialing;
+
+        bool isCallActive = provider.currentCall != null; // Updated condition
 
         return Scaffold(
           body: Stack(
@@ -444,7 +554,7 @@ class _HomePageState extends State<HomePage> {
               Column(
                 children: [
                   const Text(
-                    "Version: 1.4",
+                    "Version: 1.5",
                     style: TextStyle(color: Colors.black),
                   ),
                   Expanded(
@@ -619,10 +729,23 @@ class _HomePageState extends State<HomePage> {
                         ),
                         child: const Text("Dial"),
                       ),
+                      /*      ElevatedButton(
+                        onPressed: _answerCall, // Panggilan selalu aktif
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("Answer"),
+                      ), */
+
                       ElevatedButton(
-                        onPressed: isCallActive
+                        onPressed: Provider.of<SIPClientProvider>(context,
+                                        listen: true)
+                                    .currentCall
+                                    ?.state ==
+                                CallStateEnum.PROGRESS
                             ? _answerCall
-                            : null, // Disable if not being called
+                            : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,

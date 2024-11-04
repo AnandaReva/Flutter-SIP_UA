@@ -114,6 +114,8 @@ class _DialScreenState extends State<DialScreen>
   void callStateChanged(Call call, CallState state) {
     _logger.i(' LOGGERTHIS Call state changed: ${state.state}');
 
+
+
     switch (state.state) {
       case CallStateEnum.CALL_INITIATION:
         _logger.i(" LOGGERTHIS: Call initiating...");

@@ -6,17 +6,17 @@ class GlobalVar extends ChangeNotifier {
   factory GlobalVar() => _instance;
   GlobalVar._internal();
 
-  Call? _currentCall; // Moved from SIPClientProvider
-  String _errorMessageGlobal = ""; // Moved from SIPClientProvider
-  String _statusMessageGlobal = ""; // Moved from SIPClientProvider
+  //Call? _currentCall; 
+  String _errorMessageGlobal = ""; 
+  String _statusMessageGlobal = ""; 
   String _targetURI = "";
 
-  Call? get currentCall => _currentCall;
+/*   Call? get currentCall => _currentCall;
   set currentCall(Call? call) {
     _currentCall = call;
     notifyListeners();
   }
-
+ */
   String get errorMessageGlobal => _errorMessageGlobal;
   set errorMessageGlobal(String value) {
     _errorMessageGlobal = value;
